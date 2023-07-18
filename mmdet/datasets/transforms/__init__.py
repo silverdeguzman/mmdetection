@@ -11,6 +11,7 @@ from .loading import (FilterAnnotations, InferencerLoader, LoadAnnotations,
                       LoadEmptyAnnotations, LoadImageFromNDArray,
                       LoadMultiChannelImageFromFiles, LoadPanopticAnnotations,
                       LoadProposals)
+from .loading_tiles import LoadTileImage
 from .transforms import (Albu, CachedMixUp, CachedMosaic, CopyPaste, CutOut,
                          Expand, FixShapeResize, MinIoURandomCrop, MixUp,
                          Mosaic, Pad, PhotoMetricDistortion, RandomAffine,
@@ -22,7 +23,8 @@ from .wrappers import MultiBranch, ProposalBroadcaster, RandomOrder
 __all__ = [
     'PackDetInputs', 'ToTensor', 'ImageToTensor', 'Transpose',
     'LoadImageFromNDArray', 'LoadAnnotations', 'LoadPanopticAnnotations',
-    'LoadMultiChannelImageFromFiles', 'LoadProposals', 'Resize', 'RandomFlip',
+    'LoadMultiChannelImageFromFiles', 'LoadProposals', 
+    'LoadTileImage', 'Resize', 'RandomFlip',
     'RandomCrop', 'SegRescale', 'MinIoURandomCrop', 'Expand',
     'PhotoMetricDistortion', 'Albu', 'InstaBoost', 'RandomCenterCropPad',
     'AutoAugment', 'CutOut', 'ShearX', 'ShearY', 'Rotate', 'Color', 'Equalize',

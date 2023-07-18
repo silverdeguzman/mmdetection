@@ -2,7 +2,7 @@
 import copy
 import warnings
 from pathlib import Path
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, Dict
 
 import numpy as np
 import torch
@@ -117,7 +117,7 @@ ImagesType = Union[str, np.ndarray, Sequence[str], Sequence[np.ndarray]]
 def inference_detector(
     model: nn.Module,
     imgs: ImagesType,
-    test_pipeline: Optional[Compose] = None
+    test_pipeline: Optional[Compose] = None,
 ) -> Union[DetDataSample, SampleList]:
     """Inference image(s) with the detector.
 
@@ -140,7 +140,7 @@ def inference_detector(
         is_batch = False
 
     cfg = model.cfg
-
+    
     if test_pipeline is None:
         cfg = cfg.copy()
         test_pipeline = get_test_pipeline_cfg(cfg)
@@ -156,16 +156,10 @@ def inference_detector(
             assert not isinstance(
                 m, RoIPool
             ), 'CPU inference with RoIPool is not supported currently.'
-
     result_list = []
     for img in imgs:
         # prepare data
-        if isinstance(img, np.ndarray):
-            # TODO: remove img_id.
-            data_ = dict(img=img, img_id=0)
-        else:
-            # TODO: remove img_id.
-            data_ = dict(img_path=img, img_id=0)
+        data_ = dict(img=img, img_id=0)
         # build the data pipeline
         data_ = test_pipeline(data_)
 

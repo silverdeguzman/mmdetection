@@ -269,7 +269,7 @@ class LoadAnnotations(MMCV_LoadAnnotations):
         gt_ignore_flags = []
         for instance in results.get('instances', []):
             gt_bboxes.append(instance['bbox'])
-            gt_ignore_flags.append(instance['ignore_flag'])
+            # gt_ignore_flags.append(instance['ignore_flag'])
         if self.box_type is None:
             results['gt_bboxes'] = np.array(
                 gt_bboxes, dtype=np.float32).reshape((-1, 4))
@@ -391,8 +391,8 @@ class LoadAnnotations(MMCV_LoadAnnotations):
             dict: The dict contains loaded bounding box, label and
             semantic segmentation.
         """
-
         if self.with_bbox:
+            print(results)
             self._load_bboxes(results)
         if self.with_label:
             self._load_labels(results)

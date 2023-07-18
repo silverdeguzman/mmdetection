@@ -9,9 +9,10 @@ from .dump_proposals_metric import DumpProposals
 from .lvis_metric import LVISMetric
 from .openimages_metric import OpenImagesMetric
 from .voc_metric import VOCMetric
+from .tiling_metric import TIlingMetric
 
 __all__ = [
     'CityScapesMetric', 'CocoMetric', 'CocoPanopticMetric', 'OpenImagesMetric',
     'VOCMetric', 'LVISMetric', 'CrowdHumanMetric', 'DumpProposals',
-    'CocoOccludedSeparatedMetric', 'DumpDetResults'
+    'CocoOccludedSeparatedMetric', 'DumpDetResults', 'TilingMetric'
 ]

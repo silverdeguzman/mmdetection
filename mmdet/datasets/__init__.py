@@ -3,6 +3,7 @@ from .base_det_dataset import BaseDetDataset
 from .cityscapes import CityscapesDataset
 from .coco import CocoDataset
 from .coco_panoptic import CocoPanopticDataset
+from .tiling_dataset import TilingDataset
 from .crowdhuman import CrowdHumanDataset
 from .dataset_wrappers import MultiImageMixDataset
 from .deepfashion import DeepFashionDataset
@@ -23,5 +24,5 @@ __all__ = [
     'MultiImageMixDataset', 'OpenImagesDataset', 'OpenImagesChallengeDataset',
     'AspectRatioBatchSampler', 'ClassAwareSampler', 'MultiSourceSampler',
     'GroupMultiSourceSampler', 'BaseDetDataset', 'CrowdHumanDataset',
-    'Objects365V1Dataset', 'Objects365V2Dataset'
+    'Objects365V1Dataset', 'Objects365V2Dataset', 'TilingDataset'
 ]

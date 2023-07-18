@@ -63,6 +63,7 @@ class PackDetInputs(BaseTransform):
             - 'data_sample' (obj:`DetDataSample`): The annotation info of the
                 sample.
         """
+        
         packed_results = dict()
         if 'img' in results:
             img = results['img']

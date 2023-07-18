@@ -206,7 +206,6 @@ def tpfp_default(det_bboxes,
                   dtype=bool), np.ones(gt_bboxes_ignore.shape[0], dtype=bool)))
     # stack gt_bboxes and gt_bboxes_ignore for convenience
     gt_bboxes = np.vstack((gt_bboxes, gt_bboxes_ignore))
-
     num_dets = det_bboxes.shape[0]
     num_gts = gt_bboxes.shape[0]
     if area_ranges is None:
@@ -216,7 +215,6 @@ def tpfp_default(det_bboxes,
     # a certain scale
     tp = np.zeros((num_scales, num_dets), dtype=np.float32)
     fp = np.zeros((num_scales, num_dets), dtype=np.float32)
-
     # if there is no gt bboxes in this image, then all det bboxes
     # within area range are false positives
     if gt_bboxes.shape[0] == 0:
@@ -229,7 +227,6 @@ def tpfp_default(det_bboxes,
             for i, (min_area, max_area) in enumerate(area_ranges):
                 fp[i, (det_areas >= min_area) & (det_areas < max_area)] = 1
         return tp, fp
-
     ious = bbox_overlaps(
         det_bboxes, gt_bboxes, use_legacy_coordinate=use_legacy_coordinate)
     # for each det, the max iou with all gts
@@ -488,6 +485,7 @@ def get_cls_results(det_results, annotations, class_id):
     cls_dets = [img_res[class_id] for img_res in det_results]
     cls_gts = []
     cls_gts_ignore = []
+    
     for ann in annotations:
         gt_inds = ann['labels'] == class_id
         cls_gts.append(ann['bboxes'][gt_inds, :])
@@ -604,7 +602,7 @@ def eval_map(det_results,
         assert nproc > 0, 'nproc must be at least one.'
         nproc = min(nproc, num_imgs)
         pool = Pool(nproc)
-
+ 
     eval_results = []
     for i in range(num_classes):
         # get gt and det bboxes of this class

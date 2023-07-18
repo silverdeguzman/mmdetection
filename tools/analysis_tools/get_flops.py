@@ -20,6 +20,12 @@ try:
 except ImportError:
     raise ImportError('Please upgrade mmengine >= 0.6.0')
 
+def calc_params(model):
+    total_params = sum(
+        param.numel() for param in model.parameters()
+    )
+    print(f"Number of parameters in the network = {total_params}")
+    return total_params
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Get a detector flops')
@@ -27,7 +33,7 @@ def parse_args():
     parser.add_argument(
         '--num-images',
         type=int,
-        default=100,
+        default=10,
         help='num images of calculate model flops')
     parser.add_argument(
         '--cfg-options',
@@ -77,14 +83,16 @@ def inference(args, logger):
 
     result = {}
     avg_flops = []
-    data_loader = Runner.build_dataloader(cfg.val_dataloader)
+    
     model = MODELS.build(cfg.model)
+    total_parmams = calc_params(model)
+
     if torch.cuda.is_available():
         model = model.cuda()
     model = revert_sync_batchnorm(model)
     model.eval()
     _forward = model.forward
-
+    data_loader = Runner.build_dataloader(cfg.val_dataloader)
     for idx, data_batch in enumerate(data_loader):
         if idx == args.num_images:
             break
@@ -94,10 +102,15 @@ def inference(args, logger):
         if hasattr(data['data_samples'][0], 'batch_input_shape'):
             result['pad_shape'] = data['data_samples'][0].batch_input_shape
         model.forward = partial(_forward, data_samples=data['data_samples'])
+        data_inputs = data['inputs']
+        input_shape = data_inputs.shape
+        # dummy_input = torch.cat([data_inputs, data_inputs, data_inputs, data_inputs], dim=1)
+        dummy_input = torch.randn(1, 6, 512, 512)
+        
         outputs = get_model_complexity_info(
             model,
             None,
-            inputs=data['inputs'],
+            inputs=dummy_input,
             show_table=False,
             show_arch=False)
         avg_flops.append(outputs['flops'])

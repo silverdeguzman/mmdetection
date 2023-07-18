@@ -106,7 +106,7 @@ class DetInferencer(BaseInferencer):
             checkpoint (dict, optional): The loaded checkpoint.
             cfg (Config or ConfigDict, optional): The loaded config.
         """
-
+        
         if checkpoint is not None:
             _load_checkpoint_to_model(model, checkpoint)
             checkpoint_meta = checkpoint.get('meta', {})
@@ -160,12 +160,15 @@ class DetInferencer(BaseInferencer):
             pipeline_cfg[-1]['meta_keys'] = tuple(
                 meta_key for meta_key in pipeline_cfg[-1]['meta_keys']
                 if meta_key != 'img_id')
+        
+        load_img_type = 'LoadTileImage' 
+        # load_img_type = 'LoadImageFromFile'
 
         load_img_idx = self._get_transform_idx(pipeline_cfg,
-                                               'LoadImageFromFile')
+                                               load_img_type)
         if load_img_idx == -1:
             raise ValueError(
-                'LoadImageFromFile is not found in the test pipeline')
+                f'{load_img_type} is not found in the test pipeline')
         pipeline_cfg[load_img_idx]['type'] = 'mmdet.InferencerLoader'
         return Compose(pipeline_cfg)
 
@@ -191,6 +194,12 @@ class DetInferencer(BaseInferencer):
         visualizer = super()._init_visualizer(cfg)
         visualizer.dataset_meta = self.model.dataset_meta
         return visualizer
+
+    def _annotations_to_list(self, inputs: InputsType) -> list:
+        """Given an annotations json, parse the images and format as a list to pass
+        into inferencer. 
+        """
+        pass
 
     def _inputs_to_list(self, inputs: InputsType) -> list:
         """Preprocess the inputs to a list.
@@ -293,6 +302,7 @@ class DetInferencer(BaseInferencer):
                  print_result: bool = False,
                  no_save_pred: bool = True,
                  out_dir: str = '',
+                 save_args: dict = {},
                  **kwargs) -> dict:
         """Call the inferencer.
 
@@ -333,14 +343,30 @@ class DetInferencer(BaseInferencer):
             visualize_kwargs,
             postprocess_kwargs,
         ) = self._dispatch_kwargs(**kwargs)
-
+        
         ori_inputs = self._inputs_to_list(inputs)
         inputs = self.preprocess(
             ori_inputs, batch_size=batch_size, **preprocess_kwargs)
 
-        results_dict = {'predictions': [], 'visualization': []}
+        if save_args:
+            assert batch_size == 1, "save_args only works for a batch_size of 1"
+            tile_id = save_args.get("tile_id", -1)
+            tile_coords = save_args.get("tile_coords", [0,0,0,0])
+            file_name = save_args.get("file_name", "preds")
+            save_filename = f"{file_name}_t{tile_id:03d}"
+        else: 
+
+            tile_id = -1 
+            tile_coords = [0,0,0,0]
+            file_name = ""
+            save_filename = ""
+
+        results_dict = {'predictions': [], 'visualization': [], 
+                        'file_name': file_name, "tile_id": tile_id, "tile_coords": tile_coords}
+        preds_list = []
         for ori_inputs, data in track(inputs, description='Inference'):
             preds = self.forward(data, **forward_kwargs)
+        
             visualization = self.visualize(
                 ori_inputs,
                 preds,
@@ -351,6 +377,7 @@ class DetInferencer(BaseInferencer):
                 pred_score_thr=pred_score_thr,
                 no_save_vis=no_save_vis,
                 img_out_dir=out_dir,
+                save_filename=save_filename,
                 **visualize_kwargs)
             results = self.postprocess(
                 preds,
@@ -359,11 +386,14 @@ class DetInferencer(BaseInferencer):
                 print_result=print_result,
                 no_save_pred=no_save_pred,
                 pred_out_dir=out_dir,
+                img_filename=save_filename,
                 **postprocess_kwargs)
+            
             results_dict['predictions'].extend(results['predictions'])
             if results['visualization'] is not None:
                 results_dict['visualization'].extend(results['visualization'])
-        return results_dict
+            preds_list.extend(preds)
+        return results_dict, preds_list
 
     def visualize(self,
                   inputs: InputsType,
@@ -375,6 +405,7 @@ class DetInferencer(BaseInferencer):
                   pred_score_thr: float = 0.3,
                   no_save_vis: bool = False,
                   img_out_dir: str = '',
+                  save_filename: str = '',
                   **kwargs) -> Union[List[np.ndarray], None]:
         """Visualize predictions.
 
@@ -394,6 +425,8 @@ class DetInferencer(BaseInferencer):
                 vis results. Defaults to False.
             img_out_dir (str): Output directory of visualization results.
                 If left as empty, no file will be saved. Defaults to ''.
+            save_filename (str): Filename to save visualization results as.
+                If specified, it will overwrite img_name defined below.
 
         Returns:
             List[np.ndarray] or None: Returns visualization results only if
@@ -425,6 +458,9 @@ class DetInferencer(BaseInferencer):
                 raise ValueError('Unsupported input type: '
                                  f'{type(single_input)}')
 
+            if save_filename:
+                img_name = f'{save_filename}.jpg'
+
             out_file = osp.join(img_out_dir, 'vis',
                                 img_name) if img_out_dir != '' else None
 
@@ -448,10 +484,11 @@ class DetInferencer(BaseInferencer):
         self,
         preds: PredType,
         visualization: Optional[List[np.ndarray]] = None,
-        return_datasample: bool = False,
+        return_datasample: bool = True,
         print_result: bool = False,
         no_save_pred: bool = False,
         pred_out_dir: str = '',
+        img_filename: str = '',
         **kwargs,
     ) -> Dict:
         """Process the predictions and visualization results from ``forward``
@@ -489,13 +526,12 @@ class DetInferencer(BaseInferencer):
         """
         if no_save_pred is True:
             pred_out_dir = ''
-
         result_dict = {}
         results = preds
         if not return_datasample:
             results = []
             for pred in preds:
-                result = self.pred2dict(pred, pred_out_dir)
+                result = self.pred2dict(pred, pred_out_dir, img_filename)
                 results.append(result)
         elif pred_out_dir != '':
             warnings.warn('Currently does not support saving datasample '
@@ -512,7 +548,8 @@ class DetInferencer(BaseInferencer):
     #  Maybe should include model name, timestamp, filename, image info etc.
     def pred2dict(self,
                   data_sample: DetDataSample,
-                  pred_out_dir: str = '') -> Dict:
+                  pred_out_dir: str = '',
+                  img_filename: str = '') -> Dict:
         """Extract elements necessary to represent a prediction into a
         dictionary.
 
@@ -533,8 +570,12 @@ class DetInferencer(BaseInferencer):
             is_save_pred = False
 
         if is_save_pred and 'img_path' in data_sample:
-            img_path = osp.basename(data_sample.img_path)
-            img_path = osp.splitext(img_path)[0]
+            if img_filename:
+                img_path = img_filename
+            else:
+                img_path = osp.basename(data_sample.img_path)
+                img_path = osp.splitext(img_path)[0]
+            
             out_img_path = osp.join(pred_out_dir, 'preds',
                                     img_path + '_panoptic_seg.png')
             out_json_path = osp.join(pred_out_dir, 'preds', img_path + '.json')
